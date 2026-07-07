@@ -1,7 +1,21 @@
 import { FastifyPluginAsync } from 'fastify'
-import { requireAuth } from '../middleware/auth'
+import { z } from 'zod'
+import { Role } from '@prisma/client'
+import { requireAuth, requireRole } from '../middleware/auth'
 
 const TIEMPO_PLANIFICADO = 73.5 // hrs/semana
+
+const registroSchema = z.object({
+  equipo: z.string().min(1),
+  linea: z.string().min(1),
+  area: z.string().min(1),
+  semana: z.number().int().min(1).max(53),
+  anio: z.number().int().min(2000).max(2100),
+  horasDetenciones: z.number().min(0),
+  nroFallas: z.number().int().min(0),
+})
+
+const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max)
 
 export const confiabilidadRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', requireAuth)
@@ -19,23 +33,26 @@ export const confiabilidadRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     return registros.map((r) => {
-      const disponibilidad = ((r.tiempoPlanificado - r.horasDetenciones) / r.tiempoPlanificado) * 100
+      const disponibilidad = r.tiempoPlanificado > 0
+        ? clamp(((r.tiempoPlanificado - r.horasDetenciones) / r.tiempoPlanificado) * 100, 0, 100)
+        : 0
       const mtbf = r.nroFallas > 0 ? (r.tiempoPlanificado - r.horasDetenciones) / r.nroFallas : r.tiempoPlanificado
       const mttr = r.nroFallas > 0 ? r.horasDetenciones / r.nroFallas : 0
       return { ...r, disponibilidad, mtbf, mttr }
     })
   })
 
-  fastify.post('/', async (request, reply) => {
-    const body = request.body as {
-      equipo: string; linea: string; area: string
-      semana: number; anio: number; horasDetenciones: number; nroFallas: number
-    }
+  fastify.post('/', {
+    preHandler: [requireRole(Role.MANTENIMIENTO, Role.SUPERVISOR, Role.GERENTE, Role.ADMIN)],
+  }, async (request, reply) => {
+    const body = registroSchema.safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: 'Datos inválidos', details: body.error.flatten() })
 
+    const { equipo, semana, anio, horasDetenciones, nroFallas } = body.data
     const reg = await fastify.prisma.confiabilidadRegistro.upsert({
-      where: { equipo_semana_anio: { equipo: body.equipo, semana: body.semana, anio: body.anio } },
-      update: { horasDetenciones: body.horasDetenciones, nroFallas: body.nroFallas },
-      create: { ...body, tiempoPlanificado: TIEMPO_PLANIFICADO },
+      where: { equipo_semana_anio: { equipo, semana, anio } },
+      update: { horasDetenciones, nroFallas },
+      create: { ...body.data, tiempoPlanificado: TIEMPO_PLANIFICADO },
     })
 
     return reply.code(201).send(reg)

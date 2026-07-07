@@ -23,6 +23,24 @@ const updateSchema = z.object({
 export const solicitudesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', requireAuth)
 
+  // Reglas de visibilidad por rol, espejo del filtro del listado.
+  async function canAccessSolicitud(
+    user: { sub: string; role: Role },
+    sol: { creatorId: string; assignedToId: string | null; area: string }
+  ): Promise<boolean> {
+    if (user.role === Role.ADMIN || user.role === Role.GERENTE) return true
+    if (user.role === Role.USER) return sol.creatorId === user.sub
+    const u = await fastify.prisma.user.findUnique({ where: { id: user.sub } })
+    if (user.role === Role.JEFE_AREA || user.role === Role.SUPERVISOR) {
+      return sol.area === (u?.area ?? '')
+    }
+    if (user.role === Role.MANTENIMIENTO) {
+      if (u?.cargo?.toLowerCase().includes('coordinador')) return true
+      return sol.assignedToId === user.sub
+    }
+    return false
+  }
+
   fastify.get('/', async (request) => {
     const user = request.user as { sub: string; role: Role; email: string }
 
@@ -56,6 +74,7 @@ export const solicitudesRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
+    const user = request.user as { sub: string; role: Role }
     const sol = await fastify.prisma.solicitud.findUnique({
       where: { id },
       include: {
@@ -64,6 +83,9 @@ export const solicitudesRoutes: FastifyPluginAsync = async (fastify) => {
       },
     })
     if (!sol) return reply.code(404).send({ error: 'No encontrada' })
+    if (!(await canAccessSolicitud(user, sol))) {
+      return reply.code(403).send({ error: 'Sin permisos' })
+    }
     return sol
   })
 
@@ -82,8 +104,35 @@ export const solicitudesRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.patch('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
+    const user = request.user as { sub: string; role: Role }
     const body = updateSchema.safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: 'Datos inválidos' })
+
+    const isMant = user.role === Role.MANTENIMIENTO
+    const isGerencia = user.role === Role.GERENTE || user.role === Role.ADMIN
+    if (!isMant && !isGerencia) {
+      return reply.code(403).send({ error: 'Sin permisos para modificar la solicitud' })
+    }
+
+    // La decisión (autorizar/postergar/rechazar) y el comentario de gerencia
+    // están reservados a GERENTE/ADMIN; Mantenimiento solo puede valorizar.
+    const decisionEstados: EstadoSolicitud[] = [
+      EstadoSolicitud.AUTORIZADA,
+      EstadoSolicitud.POSTERGADA,
+      EstadoSolicitud.RECHAZADA,
+    ]
+    const tocaCamposGerencia =
+      body.data.comentarioGerente !== undefined ||
+      (body.data.estado !== undefined && decisionEstados.includes(body.data.estado))
+    if (tocaCamposGerencia && !isGerencia) {
+      return reply.code(403).send({ error: 'Solo Gerencia puede autorizar, postergar o rechazar' })
+    }
+
+    const existing = await fastify.prisma.solicitud.findUnique({ where: { id } })
+    if (!existing) return reply.code(404).send({ error: 'No encontrada' })
+    if (!(await canAccessSolicitud(user, existing))) {
+      return reply.code(403).send({ error: 'Sin permisos' })
+    }
 
     const sol = await fastify.prisma.solicitud.update({
       where: { id },

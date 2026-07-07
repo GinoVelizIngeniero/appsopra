@@ -19,12 +19,17 @@ export async function ensureSeed(prisma: PrismaClient): Promise<void> {
     }
 
     const hash = (p: string) => bcrypt.hash(p, 10)
+    // Las contraseñas por defecto son solo de arranque: se pueden sobrescribir
+    // por env y TODOS los usuarios (incluido el admin) deben cambiarlas al
+    // primer login para que no queden credenciales conocidas en producción.
+    const adminPass = process.env.SEED_ADMIN_PASSWORD ?? 'Admin2026!'
+    const defaultPass = process.env.SEED_DEFAULT_PASSWORD ?? 'Sopraval2026'
     const users = [
-      { email: adminEmail, nombre: 'Gino Véliz', cargo: 'Ingeniero Confiabilidad', area: 'Mantenimiento', role: Role.ADMIN, pass: 'Admin2026!' },
-      { email: 'rabarzua@sopraval.cl', nombre: 'R. Abarzúa', cargo: 'Gerente Planta', area: 'Gerencia', role: Role.GERENTE, pass: 'Sopraval2026' },
-      { email: 'fescobara@sopraval.cl', nombre: 'F. Escobar', cargo: 'Coordinador Mantenimiento', area: 'Mantenimiento', role: Role.MANTENIMIENTO, pass: 'Sopraval2026' },
-      { email: 'cmadridp@sopraval.cl', nombre: 'C. Madrid', cargo: 'Técnico Mantenimiento', area: 'Mantenimiento', role: Role.MANTENIMIENTO, pass: 'Sopraval2026' },
-      { email: 'trabajador1@sopraval.cl', nombre: 'Juan Pérez', cargo: 'Operario', area: 'A', role: Role.USER, pass: 'Sopraval2026' },
+      { email: adminEmail, nombre: 'Gino Véliz', cargo: 'Ingeniero Confiabilidad', area: 'Mantenimiento', role: Role.ADMIN, pass: adminPass },
+      { email: 'rabarzua@sopraval.cl', nombre: 'R. Abarzúa', cargo: 'Gerente Planta', area: 'Gerencia', role: Role.GERENTE, pass: defaultPass },
+      { email: 'fescobara@sopraval.cl', nombre: 'F. Escobar', cargo: 'Coordinador Mantenimiento', area: 'Mantenimiento', role: Role.MANTENIMIENTO, pass: defaultPass },
+      { email: 'cmadridp@sopraval.cl', nombre: 'C. Madrid', cargo: 'Técnico Mantenimiento', area: 'Mantenimiento', role: Role.MANTENIMIENTO, pass: defaultPass },
+      { email: 'trabajador1@sopraval.cl', nombre: 'Juan Pérez', cargo: 'Operario', area: 'A', role: Role.USER, pass: defaultPass },
     ]
 
     for (const u of users) {
@@ -38,7 +43,7 @@ export async function ensureSeed(prisma: PrismaClient): Promise<void> {
           area: u.area,
           role: u.role,
           password: await hash(u.pass),
-          mustChangePass: u.role !== Role.ADMIN,
+          mustChangePass: true,
         },
       })
     }

@@ -103,17 +103,22 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       data: { password: hashed, mustChangePass: false },
     })
 
+    // Invalida todas las sesiones existentes tras cambiar la contraseña.
+    await fastify.prisma.refreshToken.deleteMany({ where: { userId } })
+
     return { ok: true }
   })
 
   fastify.get('/me', {
     preHandler: [async (req, rep) => { try { await req.jwtVerify() } catch { rep.code(401).send({ error: 'No autenticado' }) } }],
-  }, async (request) => {
+  }, async (request, reply) => {
     const userId = (request.user as { sub: string }).sub
     const user = await fastify.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, nombre: true, role: true, cargo: true, area: true, mustChangePass: true },
+      select: { id: true, email: true, nombre: true, role: true, cargo: true, area: true, mustChangePass: true, active: true },
     })
-    return user
+    if (!user || !user.active) return reply.code(401).send({ error: 'Usuario no válido' })
+    const { active, ...safe } = user
+    return safe
   })
 }
