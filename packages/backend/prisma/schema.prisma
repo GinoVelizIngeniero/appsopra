@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth & Users ─────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  JEFE_AREA
+  MANTENIMIENTO
+  SUPERVISOR
+  GERENTE
+  ADMIN
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  password         String
+  nombre           String
+  cargo            String?
+  area             String?
+  role             Role     @default(USER)
+  mustChangePass   Boolean  @default(true)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  solicitudes      Solicitud[]    @relation("Creator")
+  asignadas        Solicitud[]    @relation("Assigned")
+  adfRegistros     AdfRegistro[]
+  refreshTokens    RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ─── Portal Requerimientos ────────────────────────────────────────────────────
+
+enum EstadoSolicitud {
+  PENDIENTE
+  VALORIZADA
+  AUTORIZADA
+  POSTERGADA
+  RECHAZADA
+}
+
+enum MotivoSolicitud {
+  INOCUIDAD
+  MEDIO_AMBIENTE
+  PRODUCTIVIDAD
+  SEGURIDAD
+  SINDICATO
+  GERENCIA
+}
+
+model Solicitud {
+  id                 String          @id @default(cuid())
+  titulo             String
+  descripcion        String
+  area               String
+  subArea            String?
+  motivo             MotivoSolicitud
+  fotografia         String?
+  estado             EstadoSolicitud @default(PENDIENTE)
+  costoEstimado      Float?
+  notasMantenimiento String?
+  comentarioGerente  String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  creatorId          String
+  creator            User            @relation("Creator", fields: [creatorId], references: [id])
+  assignedToId       String?
+  assignedTo         User?           @relation("Assigned", fields: [assignedToId], references: [id])
+
+  @@map("solicitudes")
+}
+
+// ─── Portal ADF ───────────────────────────────────────────────────────────────
+
+enum EstadoAdf {
+  BORRADOR
+  ANALISIS
+  PLAN_ACCION
+  SEGUIMIENTO
+  CERRADO
+}
+
+model AdfRegistro {
+  id              String     @id @default(cuid())
+  folio           String     @unique
+  equipo          String
+  codSap          String?
+  linea           String?
+  area            String
+  descripcionFalla String
+  tiempoDetencion Float?
+  fechaFalla      DateTime
+  fechaCierre     DateTime?
+  estado          EstadoAdf  @default(BORRADOR)
+  modo            String?
+  causaRaiz       String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  creatorId       String
+  creator         User       @relation(fields: [creatorId], references: [id])
+
+  causas          AdfCausa[]
+  porques         AdfPorQue[]
+  planes          AdfPlan[]
+
+  @@map("adf_registros")
+}
+
+model AdfCausa {
+  id          String      @id @default(cuid())
+  descripcion String
+  orden       Int
+  adfId       String
+  adf         AdfRegistro @relation(fields: [adfId], references: [id], onDelete: Cascade)
+
+  @@map("adf_causas")
+}
+
+model AdfPorQue {
+  id          String      @id @default(cuid())
+  nivel       Int
+  descripcion String
+  adfId       String
+  adf         AdfRegistro @relation(fields: [adfId], references: [id], onDelete: Cascade)
+
+  @@map("adf_porques")
+}
+
+model AdfPlan {
+  id             String      @id @default(cuid())
+  tipo           String
+  accion         String
+  responsable    String?
+  fechaCompromiso DateTime?
+  fechaEjecucion  DateTime?
+  realizado      Boolean     @default(false)
+  hecho          Boolean     @default(false)
+  comentario     String?
+  imagen         String?
+  adfId          String
+  adf            AdfRegistro @relation(fields: [adfId], references: [id], onDelete: Cascade)
+
+  @@map("adf_planes")
+}
+
+// ─── Dashboard Confiabilidad ──────────────────────────────────────────────────
+
+model ConfiabilidadRegistro {
+  id               String   @id @default(cuid())
+  equipo           String
+  linea            String
+  area             String
+  semana           Int
+  anio             Int
+  horasDetenciones Float    @default(0)
+  nroFallas        Int      @default(0)
+  tiempoPlanificado Float   @default(73.5)
+  createdAt        DateTime @default(now())
+
+  @@unique([equipo, semana, anio])
+  @@map("confiabilidad_registros")
+}
