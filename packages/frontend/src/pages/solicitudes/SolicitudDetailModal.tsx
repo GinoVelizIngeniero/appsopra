@@ -5,8 +5,6 @@ import { X, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
 
-const ESTADOS = ['PENDIENTE', 'VALORIZADA', 'AUTORIZADA', 'POSTERGADA', 'RECHAZADA']
-
 export default function SolicitudDetailModal({ id, onClose }: { id: string; onClose: () => void }) {
   const { user } = useAuthStore()
   const qc = useQueryClient()

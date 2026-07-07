@@ -1,0 +1,56 @@
+import Fastify, { FastifyInstance } from 'fastify'
+import cors from '@fastify/cors'
+import jwt from '@fastify/jwt'
+import multipart from '@fastify/multipart'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
+import { prismaPlugin } from './plugins/prisma'
+import { authRoutes } from './routes/auth'
+import { solicitudesRoutes } from './routes/solicitudes'
+import { adfRoutes } from './routes/adf'
+import { confiabilidadRoutes } from './routes/confiabilidad'
+import { usersRoutes } from './routes/users'
+
+const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me'
+
+// Orígenes permitidos: localhost en dev + cualquier *.vercel.app en producción
+const allowedOrigins = (origin: string | undefined, cb: (err: Error | null, allow: boolean) => void) => {
+  if (!origin) return cb(null, true)
+  const ok =
+    /^http:\/\/localhost:\d+$/.test(origin) ||
+    /\.vercel\.app$/.test(origin) ||
+    (process.env.FRONTEND_URL ? origin === process.env.FRONTEND_URL : false)
+  cb(null, ok)
+}
+
+export async function build(): Promise<FastifyInstance> {
+  const app = Fastify({ logger: { level: process.env.NODE_ENV === 'production' ? 'warn' : 'info' } })
+
+  await app.register(cors, { origin: allowedOrigins, credentials: true })
+  await app.register(jwt, { secret: JWT_SECRET })
+  await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } })
+
+  await app.register(swagger, {
+    openapi: {
+      info: { title: 'Portal Sopraval API', version: '1.0.0' },
+      components: {
+        securitySchemes: {
+          bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        },
+      },
+    },
+  })
+  await app.register(swaggerUi, { routePrefix: '/docs' })
+
+  await app.register(prismaPlugin)
+
+  await app.register(authRoutes, { prefix: '/api/auth' })
+  await app.register(solicitudesRoutes, { prefix: '/api/solicitudes' })
+  await app.register(adfRoutes, { prefix: '/api/adf' })
+  await app.register(confiabilidadRoutes, { prefix: '/api/confiabilidad' })
+  await app.register(usersRoutes, { prefix: '/api/users' })
+
+  app.get('/api/health', async () => ({ status: 'ok', ts: new Date().toISOString() }))
+
+  return app
+}
