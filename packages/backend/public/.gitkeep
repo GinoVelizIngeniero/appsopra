@@ -1,0 +1,3 @@
+# Directorio de salida estática requerido por Vercel para el proyecto backend.
+# El backend es una API serverless (api/index.ts); no genera estáticos, pero
+# Vercel exige un outputDirectory. Se mantiene vacío a propósito.
