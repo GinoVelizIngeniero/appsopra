@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin'
 import { PrismaClient } from '@prisma/client'
+import { ensureSeed } from '../services/seed'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -12,4 +13,7 @@ export const prismaPlugin = fp(async (fastify) => {
   await prisma.$connect()
   fastify.decorate('prisma', prisma)
   fastify.addHook('onClose', async () => prisma.$disconnect())
+
+  // Siembra idempotente de usuarios base al arrancar (no bloquea si falla)
+  await ensureSeed(prisma)
 })

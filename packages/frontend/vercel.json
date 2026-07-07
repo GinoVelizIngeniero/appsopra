@@ -1,9 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
-  "installCommand": "pnpm install --filter frontend...",
-  "framework": "vite",
   "rewrites": [
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
