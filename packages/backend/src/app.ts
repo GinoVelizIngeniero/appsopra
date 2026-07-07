@@ -11,6 +11,12 @@ import { adfRoutes } from './routes/adf'
 import { confiabilidadRoutes } from './routes/confiabilidad'
 import { usersRoutes } from './routes/users'
 
+const isProd = process.env.NODE_ENV === 'production'
+
+if (isProd && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET es obligatorio en producción. Configúralo antes de desplegar.')
+}
+
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me'
 
 // Orígenes permitidos: localhost en dev + cualquier *.vercel.app en producción
