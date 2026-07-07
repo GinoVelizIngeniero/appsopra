@@ -1,0 +1,67 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(node:*)",
+      "Bash(tsc:*)",
+      "Bash(tsx:*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git checkout*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(git pull*)",
+      "Bash(git fetch*)",
+      "Bash(git merge*)",
+      "Bash(git stash*)",
+      "Bash(git remote*)",
+      "Bash(git rev-parse*)",
+      "Bash(git show*)",
+      "Bash(docker*)",
+      "Bash(docker-compose*)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(ls)",
+      "Bash(pwd)",
+      "Bash(which *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(sort *)",
+      "Bash(curl *)",
+      "Bash(echo *)",
+      "Bash(cd *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(prisma *)",
+      "Bash(test *)",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "mcp__github__*",
+      "mcp__Vercel__*"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
