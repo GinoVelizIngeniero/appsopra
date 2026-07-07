@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { Role } from '@prisma/client'
 import { requireAuth, requireRole } from '../middleware/auth'
 
