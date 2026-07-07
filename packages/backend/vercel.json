@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "prisma generate && prisma db push --accept-data-loss",
+  "buildCommand": "prisma generate && prisma db push --accept-data-loss && tsx prisma/seed.ts",
   "installCommand": "pnpm install --filter backend...",
   "framework": null,
   "rewrites": [
